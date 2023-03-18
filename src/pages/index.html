@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        html, body{
+    font-family: Arial, Tahoma, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+body{
+    background:#302F31;
+    padding:10px;
+}
+
+form{
+    margin:15px 0;
+}
+form input[type='text']{
+    border:2px solid #45C5BF;
+    border-radius: 5px;
+    padding:5px;
+    width:75%;
+}
+form input[type='submit']{
+    background: #45C5BF;
+    border:none;
+    border-radius: 5px;
+    color:#FFF;
+    cursor:pointer;
+    font-weight: bold;
+    padding:7px 5px;
+    width:19%;
+}
+#historico_mensagens{
+    background: #FFF;
+    border:2px solid #45C5BF;
+    height: 450px;
+}
+    </style>
+</head>
+<body>
+    <div id="input_name">
+        <div id="nameFeedback"></div>
+        <input style="margin-bottom: 10px;" type="text" name="name" id="name" placeholder="Digite o seu nome">
+        <button id="confirmName">Confirmar nome</button>
+    </div>
+    <div id="historico_mensagens"></div>
+     <form id="chat">
+         <input type='text' id='texto_mensagem' name='texto_mensagem' />
+         <input id="enviarMessage" type='submit' value='Enviar mensagem!' disabled />
+     </form>
+
+     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+
+        $(document).ready(() => {
+            getMessages()
+        })
+
+        var userName = undefined;
+
+        $('#name').on('change', (e) => {
+            console.log(e.target.value)
+        })
+
+        $('#confirmName').on('click', (e) => {
+            const name = $('#name').val();
+            $('#nameFeedback').empty()
+            if(name.length > 3){
+                conectarSocket({name})
+            }else{
+                $('#nameFeedback').append('<span> <p stlye="color: red;">nome invalido</p> </span>')
+            }
+        })
+
+        async function getMessages(){
+            const data =  fetch('/messages')
+                .then(res => res.json())
+                .then(({body}) => {
+                    body.forEach(item => mountChatMessage(item))
+                })
+
+        }
+
+        function mountChatMessage(object){
+            const html = `
+                <div style="margin: 5px; background-color: #ccc;"> 
+                    <p>
+                    ${object.message}    
+                        </p>
+                    <small> enviado por: ${object.user} </small>
+                </div>
+            `
+            $('#historico_mensagens').append(html)
+        }
+
+        function conectarSocket({name}){
+            const socket = io();
+            socket.emit('new user connected', {
+                name
+            })
+    
+            $('#confirmName').attr('disabled', 'disabled');
+            $('#enviarMessage').removeAttr('disabled');
+
+            $("form#chat").submit(function(e){
+                e.preventDefault();
+                socket.emit("chat message", {
+                    name,
+                    message: $('#texto_mensagem').val()
+                });
+                $('#texto_mensagem').val('');
+            });
+
+         socket.on('chat message', (e) => {
+            const [{user, message}] = e
+            mountChatMessage({user, message})
+         })
+
+         socket.on('new user connected', (e) => {
+            const [{name}] = e;
+            const html = `
+                <div style="margin: 5px; background-color: #ccc;"> 
+                    <small> ${name} acabou de conectar </small>
+                </div>
+            `
+            $('#historico_mensagens').append(html)
+         })
+
+        }
+
+    </script>
+</body>
+</html>
